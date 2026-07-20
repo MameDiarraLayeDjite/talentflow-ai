@@ -7,6 +7,8 @@ import { AuthModule } from './auth/auth.module';
 import { CandidatesModule } from './candidates/candidates.module';
 import { CompaniesModule } from './companies/companies.module';
 import { JobsModule } from './jobs/jobs.module';
+import { ResumesModule } from './resumes/resumes.module';
+import { ApplicationsModule } from './applications/applications.module';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { JobsModule } from './jobs/jobs.module';
     CandidatesModule,
     CompaniesModule,
     JobsModule,
+    ResumesModule,
+    ApplicationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
