@@ -5,13 +5,17 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '../../generated/prisma/client';
+import { Prisma, type Application } from '../../generated/prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 
 @Injectable()
 export class ApplicationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   private async getOwnCandidateProfile(userId: string) {
     const candidateProfile = await this.prisma.candidateProfile.findUnique({
@@ -40,6 +44,7 @@ export class ApplicationsService {
 
     const job = await this.prisma.job.findUnique({
       where: { id: dto.jobId },
+      include: { companyProfile: { select: { userId: true } } },
     });
     if (!job || job.status !== 'PUBLISHED') {
       throw new NotFoundException('Offre introuvable');
@@ -52,8 +57,9 @@ export class ApplicationsService {
       throw new NotFoundException('CV introuvable');
     }
 
+    let application: Application;
     try {
-      return await this.prisma.application.create({
+      application = await this.prisma.application.create({
         data: {
           jobId: dto.jobId,
           candidateProfileId: candidateProfile.id,
@@ -70,6 +76,19 @@ export class ApplicationsService {
       }
       throw error;
     }
+
+    await this.notificationsService.create(
+      job.companyProfile.userId,
+      'NEW_APPLICATION',
+      {
+        applicationId: application.id,
+        jobId: job.id,
+        jobTitle: job.title,
+        candidateName: candidateProfile.fullName,
+      },
+    );
+
+    return application;
   }
 
   async findMine(userId: string) {
@@ -120,7 +139,10 @@ export class ApplicationsService {
     const companyProfile = await this.getOwnCompanyProfile(userId);
     const application = await this.prisma.application.findUnique({
       where: { id: applicationId },
-      include: { job: true },
+      include: {
+        job: true,
+        candidateProfile: { select: { userId: true } },
+      },
     });
     if (!application) {
       throw new NotFoundException('Candidature introuvable');
@@ -129,9 +151,22 @@ export class ApplicationsService {
       throw new ForbiddenException('Cette candidature ne te concerne pas');
     }
 
-    return this.prisma.application.update({
+    const updated = await this.prisma.application.update({
       where: { id: applicationId },
       data: { status: dto.status },
     });
+
+    await this.notificationsService.create(
+      application.candidateProfile.userId,
+      'APPLICATION_STATUS_CHANGED',
+      {
+        applicationId: updated.id,
+        jobId: application.job.id,
+        jobTitle: application.job.title,
+        status: updated.status,
+      },
+    );
+
+    return updated;
   }
 }

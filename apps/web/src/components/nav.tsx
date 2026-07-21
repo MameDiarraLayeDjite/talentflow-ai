@@ -1,11 +1,28 @@
 "use client";
 
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
+import { listMyNotifications } from "@/features/notifications/api";
+
+function NotificationsLink({ accessToken }: { accessToken: string }) {
+  const query = useQuery({
+    queryKey: ["notifications"],
+    queryFn: () => listMyNotifications(accessToken),
+    refetchInterval: 15000,
+  });
+  const unreadCount = query.data?.filter((n) => !n.read).length ?? 0;
+
+  return (
+    <Link href="/notifications">
+      Notifications{unreadCount > 0 ? ` (${unreadCount})` : ""}
+    </Link>
+  );
+}
 
 export function Nav() {
-  const { user, isLoading, logout } = useAuth();
+  const { user, isLoading, accessToken, logout } = useAuth();
 
   return (
     <header className="border-b">
@@ -30,6 +47,7 @@ export function Nav() {
                 <Link href="/jobs/mine">Mes offres</Link>
               </>
             )}
+            {accessToken && <NotificationsLink accessToken={accessToken} />}
             <Button variant="ghost" size="sm" onClick={() => logout()}>
               Se déconnecter
             </Button>
