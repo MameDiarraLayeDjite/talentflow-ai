@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -85,6 +86,7 @@ export default function LoginPage() {
             )}
 
             <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending && <Loader2 className="size-4 animate-spin" />}
               {mutation.isPending ? "Connexion..." : "Se connecter"}
             </Button>
           </form>

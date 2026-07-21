@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { Loader2 } from "lucide-react";
+import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -26,11 +28,17 @@ const registerSchema = z.object({
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
+const ROLE_OPTIONS: { value: "CANDIDATE" | "COMPANY"; label: string }[] = [
+  { value: "CANDIDATE", label: "Candidat" },
+  { value: "COMPANY", label: "Entreprise" },
+];
+
 export default function RegisterPage() {
   const { register: registerUser } = useAuth();
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -57,6 +65,33 @@ export default function RegisterPage() {
             className="flex flex-col gap-4"
           >
             <div className="flex flex-col gap-2">
+              <Label>Je suis</Label>
+              <Controller
+                control={control}
+                name="role"
+                render={({ field }) => (
+                  <div className="bg-muted grid grid-cols-2 gap-1 rounded-lg p-1">
+                    {ROLE_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => field.onChange(option.value)}
+                        className={cn(
+                          "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                          field.value === option.value
+                            ? "bg-background shadow-sm"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" {...register("email")} />
               {errors.email && (
@@ -80,18 +115,6 @@ export default function RegisterPage() {
               )}
             </div>
 
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="role">Je suis</Label>
-              <select
-                id="role"
-                {...register("role")}
-                className="border-input h-9 rounded-md border bg-transparent px-3 text-sm shadow-xs"
-              >
-                <option value="CANDIDATE">Candidat</option>
-                <option value="COMPANY">Entreprise</option>
-              </select>
-            </div>
-
             {mutation.isError && (
               <p className="text-sm text-destructive">
                 {mutation.error instanceof ApiError
@@ -101,6 +124,7 @@ export default function RegisterPage() {
             )}
 
             <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending && <Loader2 className="size-4 animate-spin" />}
               {mutation.isPending ? "Création..." : "Créer mon compte"}
             </Button>
           </form>
