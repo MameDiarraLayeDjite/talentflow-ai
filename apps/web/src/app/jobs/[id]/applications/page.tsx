@@ -3,13 +3,21 @@
 import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth-context";
 import {
   listApplicationsForJob,
   updateApplicationStatus,
 } from "@/features/applications/api";
-import type { ApplicationStatus } from "@talentflow/types";
+import { listMyJobs, updateJob } from "@/features/jobs/api";
+import type { ApplicationStatus, JobStatus } from "@talentflow/types";
+
+const JOB_STATUS_LABEL: Record<JobStatus, string> = {
+  DRAFT: "Brouillon",
+  PUBLISHED: "Publiée",
+  CLOSED: "Fermée",
+};
 
 const STATUS_OPTIONS: ApplicationStatus[] = [
   "RECEIVED",
@@ -63,9 +71,49 @@ function ApplicationsList({ accessToken }: { accessToken: string }) {
     },
   });
 
+  const myJobsQuery = useQuery({
+    queryKey: ["myJobs"],
+    queryFn: () => listMyJobs(accessToken),
+  });
+  const job = myJobsQuery.data?.find((j) => j.id === params.id);
+
+  const jobStatusMutation = useMutation({
+    mutationFn: (status: JobStatus) => updateJob(accessToken, params.id, { status }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["myJobs"] });
+    },
+  });
+
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-6">
-      <h1 className="text-2xl font-semibold">Candidatures reçues</h1>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Candidatures reçues</h1>
+          {job && (
+            <p className="text-muted-foreground text-sm">
+              {job.title} · {JOB_STATUS_LABEL[job.status]}
+            </p>
+          )}
+        </div>
+        {job && job.status !== "CLOSED" && (
+          <Button
+            variant="outline"
+            disabled={jobStatusMutation.isPending}
+            onClick={() => jobStatusMutation.mutate("CLOSED")}
+          >
+            Fermer l&apos;offre
+          </Button>
+        )}
+        {job && job.status === "CLOSED" && (
+          <Button
+            variant="outline"
+            disabled={jobStatusMutation.isPending}
+            onClick={() => jobStatusMutation.mutate("PUBLISHED")}
+          >
+            Republier l&apos;offre
+          </Button>
+        )}
+      </div>
 
       {query.isLoading && <p className="text-muted-foreground text-sm">Chargement...</p>}
       {query.data?.length === 0 && (
