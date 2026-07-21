@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -135,6 +136,7 @@ function NewJobForm({ accessToken }: { accessToken: string }) {
             )}
 
             <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending && <Loader2 className="size-4 animate-spin" />}
               {mutation.isPending ? "Publication..." : "Publier l'offre"}
             </Button>
           </form>

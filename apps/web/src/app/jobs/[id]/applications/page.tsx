@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth-context";
@@ -10,6 +11,7 @@ import {
   listApplicationsForJob,
   updateApplicationStatus,
 } from "@/features/applications/api";
+import { ApplicationStatusBadge } from "@/features/applications/status-badge";
 import { listMyJobs, updateJob } from "@/features/jobs/api";
 import type { ApplicationStatus, JobStatus } from "@talentflow/types";
 
@@ -115,18 +117,29 @@ function ApplicationsList({ accessToken }: { accessToken: string }) {
         )}
       </div>
 
-      {query.isLoading && <p className="text-muted-foreground text-sm">Chargement...</p>}
+      {query.isLoading && (
+        <div className="text-muted-foreground flex items-center justify-center gap-2 py-12 text-sm">
+          <Loader2 className="size-4 animate-spin" />
+          Chargement...
+        </div>
+      )}
       {query.data?.length === 0 && (
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground py-12 text-center text-sm">
           Aucune candidature pour l&apos;instant.
         </p>
       )}
       {query.data?.map((application) => (
         <Card key={application.id}>
           <CardHeader>
-            <CardTitle className="text-base">
-              {application.candidateProfile.fullName}
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <UserRound className="text-muted-foreground size-4" />
+                <CardTitle className="text-base">
+                  {application.candidateProfile.fullName}
+                </CardTitle>
+              </div>
+              <ApplicationStatusBadge status={application.status} />
+            </div>
           </CardHeader>
           <CardContent className="flex flex-col gap-2 text-sm">
             {application.candidateProfile.title && (

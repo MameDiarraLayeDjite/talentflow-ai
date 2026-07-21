@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ExternalLink, FileText, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,15 @@ const schema = z.object({
   fileUrl: z.string().url("Colle un lien valide vers ton CV (PDF)"),
 });
 type FormValues = z.infer<typeof schema>;
+
+function fileName(url: string): string {
+  try {
+    const path = new URL(url).pathname;
+    return decodeURIComponent(path.split("/").pop() || url);
+  } catch {
+    return url;
+  }
+}
 
 export default function ResumesPage() {
   const { user, isLoading, accessToken } = useAuth();
@@ -95,13 +105,17 @@ function ResumesContent({ accessToken }: { accessToken: string }) {
               </p>
             )}
             <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending && <Loader2 className="size-4 animate-spin" />}
               {mutation.isPending ? "Ajout..." : "Ajouter ce CV"}
             </Button>
           </form>
 
           <div className="flex flex-col gap-2">
             {query.isLoading && (
-              <p className="text-muted-foreground text-sm">Chargement...</p>
+              <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                <Loader2 className="size-4 animate-spin" />
+                Chargement...
+              </div>
             )}
             {query.data?.length === 0 && (
               <p className="text-muted-foreground text-sm">
@@ -114,9 +128,11 @@ function ResumesContent({ accessToken }: { accessToken: string }) {
                 href={resume.fileUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="text-sm underline"
+                className="hover:bg-muted/50 flex items-center gap-2 rounded-md border p-2.5 text-sm transition-colors"
               >
-                {resume.fileUrl}
+                <FileText className="text-muted-foreground size-4 shrink-0" />
+                <span className="flex-1 truncate">{fileName(resume.fileUrl)}</span>
+                <ExternalLink className="text-muted-foreground size-3.5 shrink-0" />
               </a>
             ))}
           </div>

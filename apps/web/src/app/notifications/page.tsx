@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Bell, Loader2, RefreshCw, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth-context";
@@ -11,8 +12,14 @@ import {
   listMyNotifications,
   markAllNotificationsAsRead,
   markNotificationAsRead,
+  type AppNotification,
 } from "@/features/notifications/api";
 import { notificationHref, notificationText } from "@/features/notifications/notification-text";
+
+const NOTIFICATION_ICON: Record<AppNotification["type"], typeof Bell> = {
+  NEW_APPLICATION: UserPlus,
+  APPLICATION_STATUS_CHANGED: RefreshCw,
+};
 
 export default function NotificationsPage() {
   const { user, isLoading, accessToken } = useAuth();
@@ -57,7 +64,7 @@ function NotificationsList({ accessToken }: { accessToken: string }) {
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Notifications</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Notifications</h1>
         {hasUnread && (
           <Button
             variant="ghost"
@@ -70,34 +77,42 @@ function NotificationsList({ accessToken }: { accessToken: string }) {
         )}
       </div>
 
-      {query.isLoading && <p className="text-muted-foreground text-sm">Chargement...</p>}
-      {query.data?.length === 0 && (
-        <p className="text-muted-foreground text-sm">Aucune notification.</p>
+      {query.isLoading && (
+        <div className="text-muted-foreground flex items-center justify-center gap-2 py-12 text-sm">
+          <Loader2 className="size-4 animate-spin" />
+          Chargement...
+        </div>
       )}
-      {query.data?.map((notification) => (
-        <Card key={notification.id} className={notification.read ? "opacity-60" : ""}>
-          <CardContent className="flex items-center justify-between gap-4 text-sm">
-            <Link
-              href={notificationHref(notification)}
-              onClick={() => {
-                if (!notification.read) markOne.mutate(notification.id);
-              }}
-              className="flex-1 underline-offset-2 hover:underline"
-            >
-              {notificationText(notification)}
-            </Link>
-            {!notification.read && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => markOne.mutate(notification.id)}
+      {query.data?.length === 0 && (
+        <div className="text-muted-foreground flex flex-col items-center gap-2 py-12 text-sm">
+          <Bell className="size-6" />
+          Aucune notification.
+        </div>
+      )}
+      {query.data?.map((notification) => {
+        const Icon = NOTIFICATION_ICON[notification.type] ?? Bell;
+        return (
+          <Card key={notification.id} className={notification.read ? "opacity-60" : ""}>
+            <CardContent className="flex items-center gap-3 text-sm">
+              <div className="bg-muted flex size-8 shrink-0 items-center justify-center rounded-full">
+                <Icon className="size-4" />
+              </div>
+              <Link
+                href={notificationHref(notification)}
+                onClick={() => {
+                  if (!notification.read) markOne.mutate(notification.id);
+                }}
+                className="flex-1 underline-offset-2 hover:underline"
               >
-                Marquer comme lu
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ))}
+                {notificationText(notification)}
+              </Link>
+              {!notification.read && (
+                <span className="bg-primary size-2 shrink-0 rounded-full" />
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
     </main>
   );
 }
