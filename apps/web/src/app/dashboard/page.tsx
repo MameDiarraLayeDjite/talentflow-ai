@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +17,19 @@ const ROLE_LABEL: Record<string, string> = {
   CANDIDATE: "Candidat",
   COMPANY: "Entreprise",
 };
+
+const CANDIDATE_LINKS = [
+  { href: "/profile", label: "Mon profil" },
+  { href: "/resumes", label: "Mes CV" },
+  { href: "/jobs", label: "Chercher une offre" },
+  { href: "/applications", label: "Mes candidatures" },
+];
+
+const COMPANY_LINKS = [
+  { href: "/profile", label: "Mon profil" },
+  { href: "/jobs/new", label: "Publier une offre" },
+  { href: "/jobs/mine", label: "Mes offres" },
+];
 
 export default function DashboardPage() {
   const { user, isLoading, logout } = useAuth();
@@ -49,7 +63,22 @@ export default function DashboardPage() {
               {ROLE_LABEL[user.role] ?? user.role}
             </p>
           </div>
-          <Button variant="outline" onClick={() => logout()}>
+          <div className="flex flex-col gap-2">
+            {(user.role === "CANDIDATE" ? CANDIDATE_LINKS : COMPANY_LINKS).map(
+              (link) => (
+                <Button
+                  key={link.href}
+                  variant="outline"
+                  nativeButton={false}
+                  render={<Link href={link.href} />}
+                >
+                  {link.label}
+                </Button>
+              ),
+            )}
+          </div>
+
+          <Button variant="ghost" onClick={() => logout()}>
             Se déconnecter
           </Button>
         </CardContent>
