@@ -34,7 +34,7 @@ export function Nav() {
         {isLoading ? null : user ? (
           <nav className="flex items-center gap-4 text-sm">
             <Link href="/jobs">Offres</Link>
-            <Link href="/profile">Mon profil</Link>
+            {user.role !== "ADMIN" && <Link href="/profile">Mon profil</Link>}
             {user.role === "CANDIDATE" && (
               <>
                 <Link href="/resumes">Mes CV</Link>
@@ -47,6 +47,7 @@ export function Nav() {
                 <Link href="/jobs/mine">Mes offres</Link>
               </>
             )}
+            {user.role === "ADMIN" && <Link href="/admin">Admin</Link>}
             {accessToken && <NotificationsLink accessToken={accessToken} />}
             <Button variant="ghost" size="sm" onClick={() => logout()}>
               Se déconnecter

@@ -1,6 +1,9 @@
+import * as bcrypt from 'bcrypt';
 import request from 'supertest';
+import type { INestApplication } from '@nestjs/common';
 import type { App } from 'supertest/types';
 import type { UserRole } from '@talentflow/types';
+import { PrismaService } from '../../src/prisma/prisma.service';
 
 let counter = 0;
 function uniqueEmail(prefix: string): string {
@@ -105,6 +108,33 @@ export async function createResume(
     .send({ fileUrl })
     .expect(201);
   return res.body;
+}
+
+export async function registerAdmin(
+  nestApp: INestApplication,
+  overrides: Partial<{ email: string; password: string }> = {},
+): Promise<AuthedUser> {
+  const email = overrides.email ?? uniqueEmail('admin');
+  const password = overrides.password ?? 'password123';
+  const passwordHash = await bcrypt.hash(password, 4);
+
+  const prisma = nestApp.get(PrismaService);
+  await prisma.user.create({
+    data: { email, passwordHash, role: 'ADMIN' },
+  });
+
+  const res = await request(nestApp.getHttpServer())
+    .post('/auth/login')
+    .send({ email, password })
+    .expect(200);
+
+  return {
+    email,
+    password,
+    role: 'ADMIN',
+    accessToken: res.body.accessToken as string,
+    refreshToken: res.body.refreshToken as string,
+  };
 }
 
 export async function setupCandidateWithResume(app: App) {
