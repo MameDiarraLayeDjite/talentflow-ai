@@ -4,7 +4,8 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { ClipboardList, Loader2, MapPin } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { CompanyAvatar } from "@/components/company-avatar";
 import { useAuth } from "@/lib/auth-context";
 import { listMyApplications } from "@/features/applications/api";
 import { ApplicationStatusBadge } from "@/features/applications/status-badge";
@@ -34,7 +35,16 @@ function MyApplicationsList({ accessToken }: { accessToken: string }) {
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Mes candidatures</h1>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Mes candidatures
+        </h1>
+        {query.data && query.data.length > 0 && (
+          <p className="text-muted-foreground text-sm">
+            {query.data.length} candidature{query.data.length > 1 ? "s" : ""}
+          </p>
+        )}
+      </div>
 
       {query.isLoading && (
         <div className="text-muted-foreground flex items-center justify-center gap-2 py-12 text-sm">
@@ -49,20 +59,25 @@ function MyApplicationsList({ accessToken }: { accessToken: string }) {
         </div>
       )}
       {query.data?.map((application) => (
-        <Card key={application.id}>
-          <CardHeader>
-            <CardTitle className="text-base">{application.job.title}</CardTitle>
-            <p className="text-muted-foreground text-sm">
-              {application.job.companyProfile.name}
-            </p>
-          </CardHeader>
-          <CardContent className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground flex items-center gap-1">
-              <MapPin className="size-3.5" />
-              {application.job.location}
-            </span>
-            <ApplicationStatusBadge status={application.status} />
-          </CardContent>
+        <Card key={application.id} className="gap-0 p-4 shadow-sm">
+          <div className="flex gap-3">
+            <CompanyAvatar name={application.job.companyProfile.name} />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-2">
+                <h2 className="truncate font-medium">
+                  {application.job.title}
+                </h2>
+                <ApplicationStatusBadge status={application.status} />
+              </div>
+              <p className="text-muted-foreground text-sm">
+                {application.job.companyProfile.name}
+              </p>
+              <span className="text-muted-foreground mt-2 flex items-center gap-1 text-sm">
+                <MapPin className="size-3.5" />
+                {application.job.location}
+              </span>
+            </div>
+          </div>
         </Card>
       ))}
     </main>

@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Briefcase, Loader2, MapPin, PlusCircle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { relativeTime } from "@/lib/relative-time";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { listMyJobs } from "@/features/jobs/api";
@@ -72,11 +73,14 @@ function MyJobsList({ accessToken }: { accessToken: string }) {
       )}
       {query.data?.map((job) => (
         <Link key={job.id} href={`/jobs/${job.id}/applications`}>
-          <Card className="hover:bg-muted/50 transition-colors">
-            <CardHeader>
-              <CardTitle className="text-base">{job.title}</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+          <Card className="gap-0 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+            <div className="flex items-start justify-between gap-2">
+              <h2 className="font-medium">{job.title}</h2>
+              <span className="text-muted-foreground shrink-0 text-xs">
+                {relativeTime(job.createdAt)}
+              </span>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
               <span className="text-muted-foreground flex items-center gap-1">
                 <MapPin className="size-3.5" />
                 {job.location}
@@ -93,7 +97,7 @@ function MyJobsList({ accessToken }: { accessToken: string }) {
               >
                 {STATUS_LABEL[job.status] ?? job.status}
               </span>
-            </CardContent>
+            </div>
           </Card>
         </Link>
       ))}

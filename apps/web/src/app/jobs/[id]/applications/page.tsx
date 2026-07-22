@@ -3,9 +3,10 @@
 import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, UserRound } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { CompanyAvatar } from "@/components/company-avatar";
 import { useAuth } from "@/lib/auth-context";
 import {
   listApplicationsForJob,
@@ -129,62 +130,62 @@ function ApplicationsList({ accessToken }: { accessToken: string }) {
         </p>
       )}
       {query.data?.map((application) => (
-        <Card key={application.id}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <UserRound className="text-muted-foreground size-4" />
-                <CardTitle className="text-base">
+        <Card key={application.id} className="gap-0 p-4 shadow-sm">
+          <div className="flex gap-3">
+            <CompanyAvatar name={application.candidateProfile.fullName} />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-2">
+                <h2 className="font-medium">
                   {application.candidateProfile.fullName}
-                </CardTitle>
+                </h2>
+                <ApplicationStatusBadge status={application.status} />
               </div>
-              <ApplicationStatusBadge status={application.status} />
-            </div>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2 text-sm">
-            {application.candidateProfile.title && (
-              <p className="text-muted-foreground">
-                {application.candidateProfile.title}
-              </p>
-            )}
-            {application.candidateProfile.skills.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {application.candidateProfile.skills.map((skill) => (
-                  <span
-                    key={skill}
-                    className="bg-muted rounded-full px-2.5 py-0.5 text-xs"
-                  >
-                    {skill}
-                  </span>
-                ))}
-              </div>
-            )}
-            <a
-              href={application.resume.fileUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="underline"
-            >
-              Voir le CV
-            </a>
+              {application.candidateProfile.title && (
+                <p className="text-muted-foreground text-sm">
+                  {application.candidateProfile.title}
+                </p>
+              )}
+              {application.candidateProfile.skills.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {application.candidateProfile.skills.map((skill) => (
+                    <span
+                      key={skill}
+                      className="bg-muted rounded-full px-2.5 py-0.5 text-xs"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <a
+                  href={application.resume.fileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm underline"
+                >
+                  Voir le CV
+                </a>
 
-            <select
-              value={application.status}
-              onChange={(e) =>
-                mutation.mutate({
-                  id: application.id,
-                  status: e.target.value as ApplicationStatus,
-                })
-              }
-              className="border-input h-9 w-fit rounded-md border bg-transparent px-3 text-sm"
-            >
-              {STATUS_OPTIONS.map((status) => (
-                <option key={status} value={status}>
-                  {STATUS_LABEL[status]}
-                </option>
-              ))}
-            </select>
-          </CardContent>
+                <select
+                  value={application.status}
+                  onChange={(e) =>
+                    mutation.mutate({
+                      id: application.id,
+                      status: e.target.value as ApplicationStatus,
+                    })
+                  }
+                  className="border-input h-9 w-fit rounded-md border bg-transparent px-3 text-sm"
+                >
+                  {STATUS_OPTIONS.map((status) => (
+                    <option key={status} value={status}>
+                      {STATUS_LABEL[status]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
         </Card>
       ))}
     </main>
