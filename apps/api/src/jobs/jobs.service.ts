@@ -40,30 +40,60 @@ export class JobsService {
   }
 
   async findAll(query: QueryJobsDto) {
-    return this.prisma.job.findMany({
-      where: {
-        status: 'PUBLISHED',
-        ...(query.location
-          ? { location: { contains: query.location, mode: 'insensitive' } }
-          : {}),
-        ...(query.contractType ? { contractType: query.contractType } : {}),
-        ...(query.keyword
-          ? {
-              OR: [
-                { title: { contains: query.keyword, mode: 'insensitive' } },
-                {
-                  description: {
-                    contains: query.keyword,
-                    mode: 'insensitive',
-                  },
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 8;
+
+    const where = {
+      status: 'PUBLISHED' as const,
+      ...(query.location
+        ? {
+            location: {
+              contains: query.location,
+              mode: 'insensitive' as const,
+            },
+          }
+        : {}),
+      ...(query.contractType ? { contractType: query.contractType } : {}),
+      ...(query.keyword
+        ? {
+            OR: [
+              {
+                title: {
+                  contains: query.keyword,
+                  mode: 'insensitive' as const,
                 },
-              ],
-            }
-          : {}),
-      },
-      include: { companyProfile: { select: { name: true, logoUrl: true } } },
-      orderBy: { createdAt: 'desc' },
-    });
+              },
+              {
+                description: {
+                  contains: query.keyword,
+                  mode: 'insensitive' as const,
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+
+    const [items, total] = await Promise.all([
+      this.prisma.job.findMany({
+        where,
+        include: {
+          companyProfile: { select: { name: true, logoUrl: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.job.count({ where }),
+    ]);
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    };
   }
 
   async findMine(userId: string) {

@@ -3,20 +3,13 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Briefcase, MapPin } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { ArrowLeft } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { getJob } from "@/features/jobs/api";
-import { useAuth } from "@/lib/auth-context";
-import { ApplyForm } from "@/features/applications/apply-form";
+import { JobDetailContent } from "@/features/jobs/job-detail-content";
 
 export default function JobDetailPage() {
   const params = useParams<{ id: string }>();
-  const { user, accessToken } = useAuth();
 
   const query = useQuery({
     queryKey: ["job", params.id],
@@ -34,8 +27,6 @@ export default function JobDetailPage() {
     );
   }
 
-  const job = query.data;
-
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-6">
       <Link
@@ -46,43 +37,8 @@ export default function JobDetailPage() {
         Retour aux offres
       </Link>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">{job.title}</CardTitle>
-          <p className="text-muted-foreground text-sm">
-            {job.companyProfile.name}
-          </p>
-          <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-sm">
-            <span className="flex items-center gap-1">
-              <MapPin className="size-3.5" />
-              {job.location}
-            </span>
-            <span className="flex items-center gap-1">
-              <Briefcase className="size-3.5" />
-              {job.contractType}
-            </span>
-          </div>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <p className="whitespace-pre-wrap text-sm">{job.description}</p>
-
-          {job.requiredSkills.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {job.requiredSkills.map((skill) => (
-                <span
-                  key={skill}
-                  className="bg-muted rounded-full px-2.5 py-0.5 text-xs"
-                >
-                  {skill}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {user?.role === "CANDIDATE" && accessToken && (
-            <ApplyForm accessToken={accessToken} jobId={job.id} />
-          )}
-        </CardContent>
+      <Card className="p-6 shadow-sm">
+        <JobDetailContent job={query.data} />
       </Card>
     </main>
   );

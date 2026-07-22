@@ -65,7 +65,10 @@ describe('Jobs (e2e)', () => {
     expect(job.status).toBe('PUBLISHED');
 
     const list = await request(app.getHttpServer()).get('/jobs').expect(200);
-    expect(list.body.map((j: { id: string }) => j.id)).toContain(job.id);
+    expect(list.body.items.map((j: { id: string }) => j.id)).toContain(
+      job.id,
+    );
+    expect(list.body.total).toBeGreaterThanOrEqual(1);
   });
 
   it('filters the public list by keyword', async () => {
@@ -84,8 +87,31 @@ describe('Jobs (e2e)', () => {
       .get('/jobs?keyword=React')
       .expect(200);
 
-    expect(res.body).toHaveLength(1);
-    expect(res.body[0].title).toBe('React Developer');
+    expect(res.body.items).toHaveLength(1);
+    expect(res.body.items[0].title).toBe('React Developer');
+    expect(res.body.total).toBe(1);
+  });
+
+  it('paginates the public list', async () => {
+    const user = await registerUser(app.getHttpServer(), 'COMPANY');
+    await createCompanyProfile(app.getHttpServer(), user.accessToken);
+    for (let i = 0; i < 3; i++) {
+      await createJob(app.getHttpServer(), user.accessToken, {
+        title: `Job ${i}`,
+      });
+    }
+
+    const firstPage = await request(app.getHttpServer())
+      .get('/jobs?limit=2&page=1')
+      .expect(200);
+    expect(firstPage.body.items).toHaveLength(2);
+    expect(firstPage.body.total).toBe(3);
+    expect(firstPage.body.totalPages).toBe(2);
+
+    const secondPage = await request(app.getHttpServer())
+      .get('/jobs?limit=2&page=2')
+      .expect(200);
+    expect(secondPage.body.items).toHaveLength(1);
   });
 
   it('returns 404 for a job that does not exist', async () => {
@@ -106,7 +132,7 @@ describe('Jobs (e2e)', () => {
     await request(app.getHttpServer()).get(`/jobs/${job.id}`).expect(404);
 
     const list = await request(app.getHttpServer()).get('/jobs').expect(200);
-    expect(list.body).toHaveLength(0);
+    expect(list.body.items).toHaveLength(0);
 
     const mine = await request(app.getHttpServer())
       .get('/jobs/mine')

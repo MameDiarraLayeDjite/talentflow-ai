@@ -29,17 +29,26 @@ export interface JobFilters {
   keyword?: string;
   location?: string;
   contractType?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface PaginatedJobs {
+  items: JobWithCompany[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 export function listJobs(filters: JobFilters = {}) {
   const params = new URLSearchParams(
-    Object.entries(filters).filter(([, v]) => Boolean(v)) as [
-      string,
-      string,
-    ][],
+    Object.entries(filters)
+      .filter(([, v]) => v !== undefined && v !== "")
+      .map(([k, v]) => [k, String(v)]),
   );
   const query = params.toString();
-  return apiFetch<JobWithCompany[]>(`/jobs${query ? `?${query}` : ""}`);
+  return apiFetch<PaginatedJobs>(`/jobs${query ? `?${query}` : ""}`);
 }
 
 export function getJob(id: string) {
