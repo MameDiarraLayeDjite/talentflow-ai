@@ -7,9 +7,23 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
-import { deleteAdminUser, listAdminUsers } from "@/features/admin/api";
+import {
+  deleteAdminUser,
+  listAdminUsers,
+  type AdminUser,
+} from "@/features/admin/api";
 import type { UserRole } from "@talentflow/types";
 
 const PAGE_SIZE = 20;
@@ -33,6 +47,7 @@ export default function AdminUsersPage() {
   const queryClient = useQueryClient();
   const [role, setRole] = useState<UserRole | undefined>(undefined);
   const [page, setPage] = useState(1);
+  const [pendingDelete, setPendingDelete] = useState<AdminUser | null>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -54,6 +69,7 @@ export default function AdminUsersPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
       queryClient.invalidateQueries({ queryKey: ["adminStats"] });
+      setPendingDelete(null);
     },
   });
 
@@ -137,15 +153,7 @@ export default function AdminUsersPage() {
                   variant="outline"
                   size="sm"
                   disabled={isSelf || deleteMutation.isPending}
-                  onClick={() => {
-                    if (
-                      confirm(
-                        `Supprimer le compte ${u.email} ? Cette action est irréversible.`,
-                      )
-                    ) {
-                      deleteMutation.mutate(u.id);
-                    }
-                  }}
+                  onClick={() => setPendingDelete(u)}
                 >
                   <Trash2 className="size-4" />
                   Supprimer
@@ -185,6 +193,34 @@ export default function AdminUsersPage() {
           </Button>
         </div>
       )}
+
+      <AlertDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer ce compte ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete?.email} sera définitivement supprimé, ainsi que
+              son profil, ses candidatures et ses offres associées. Cette
+              action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() =>
+                pendingDelete && deleteMutation.mutate(pendingDelete.id)
+              }
+            >
+              {deleteMutation.isPending ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
