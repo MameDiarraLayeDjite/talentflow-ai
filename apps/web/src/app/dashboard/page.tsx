@@ -56,18 +56,12 @@ const CANDIDATE_LINKS: DashboardLink[] = [
   },
 ];
 
-const COMPANY_LINKS: DashboardLink[] = [
+const COMPANY_QUICK_LINKS: DashboardLink[] = [
   {
     href: "/profile",
     label: "Mon profil",
     description: "Nom, secteur, description",
     icon: User,
-  },
-  {
-    href: "/jobs/new",
-    label: "Publier une offre",
-    description: "Visible immédiatement",
-    icon: PlusCircle,
   },
   {
     href: "/jobs/mine",
@@ -91,10 +85,14 @@ export default function DashboardPage() {
     return null;
   }
 
-  const links = user.role === "CANDIDATE" ? CANDIDATE_LINKS : COMPANY_LINKS;
+  const isCompany = user.role === "COMPANY";
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 p-6">
+    <main
+      className={`mx-auto flex w-full flex-1 flex-col gap-8 p-6 ${
+        isCompany ? "max-w-5xl" : "max-w-3xl"
+      }`}
+    >
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
@@ -104,33 +102,58 @@ export default function DashboardPage() {
             {ROLE_LABEL[user.role] ?? user.role} · {user.email}
           </p>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => logout()}>
-          Se déconnecter
-        </Button>
+        <div className="flex items-center gap-2">
+          {isCompany && (
+            <Button size="sm" nativeButton={false} render={<Link href="/jobs/new" />}>
+              <PlusCircle className="size-4" />
+              Publier une offre
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={() => logout()}>
+            Se déconnecter
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {links.map((link) => (
-          <Link key={link.href} href={link.href}>
-            <Card className="hover:bg-muted/50 h-full transition-colors">
-              <CardHeader>
-                <link.icon className="text-muted-foreground mb-1 size-5" />
-                <CardTitle className="text-base">{link.label}</CardTitle>
-              </CardHeader>
-              <CardContent className="text-muted-foreground text-sm">
-                {link.description}
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-      </div>
+      {isCompany ? (
+        <>
+          {accessToken && <CompanyStats accessToken={accessToken} />}
 
-      {user.role === "COMPANY" && accessToken && (
-        <div>
-          <h2 className="mb-3 text-lg font-semibold tracking-tight">
-            Aperçu
-          </h2>
-          <CompanyStats accessToken={accessToken} />
+          <div>
+            <h2 className="text-muted-foreground mb-3 text-sm font-medium">
+              Actions rapides
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              {COMPANY_QUICK_LINKS.map((link) => (
+                <Button
+                  key={link.href}
+                  variant="outline"
+                  size="sm"
+                  nativeButton={false}
+                  render={<Link href={link.href} />}
+                >
+                  <link.icon className="size-4" />
+                  {link.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {CANDIDATE_LINKS.map((link) => (
+            <Link key={link.href} href={link.href}>
+              <Card className="hover:bg-muted/50 h-full transition-colors">
+                <CardHeader>
+                  <link.icon className="text-muted-foreground mb-1 size-5" />
+                  <CardTitle className="text-base">{link.label}</CardTitle>
+                </CardHeader>
+                <CardContent className="text-muted-foreground text-sm">
+                  {link.description}
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
         </div>
       )}
     </main>

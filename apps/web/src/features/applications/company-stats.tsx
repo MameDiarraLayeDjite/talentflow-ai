@@ -167,7 +167,7 @@ export function CompanyStats({ accessToken }: { accessToken: string }) {
           Aucune candidature reçue pour l&apos;instant.
         </p>
       ) : (
-        <>
+        <div className="grid gap-4 lg:grid-cols-2">
           <Card className="p-4 shadow-sm">
             <CardHeader className="px-0 pt-0">
               <CardTitle className="text-sm font-medium">
@@ -189,7 +189,7 @@ export function CompanyStats({ accessToken }: { accessToken: string }) {
               <TrendChart data={applicationsByDay} />
             </CardContent>
           </Card>
-        </>
+        </div>
       )}
     </div>
   );
