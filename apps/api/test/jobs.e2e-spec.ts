@@ -65,9 +65,7 @@ describe('Jobs (e2e)', () => {
     expect(job.status).toBe('PUBLISHED');
 
     const list = await request(app.getHttpServer()).get('/jobs').expect(200);
-    expect(list.body.items.map((j: { id: string }) => j.id)).toContain(
-      job.id,
-    );
+    expect(list.body.items.map((j: { id: string }) => j.id)).toContain(job.id);
     expect(list.body.total).toBeGreaterThanOrEqual(1);
   });
 

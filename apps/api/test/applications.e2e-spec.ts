@@ -133,4 +133,51 @@ describe('Applications (e2e)', () => {
       .expect(200);
     expect(mine.body[0].status).toBe('INTERVIEW');
   });
+
+  describe('company stats', () => {
+    it('rejects a candidate requesting company stats', async () => {
+      const candidate = await registerUser(app.getHttpServer(), 'CANDIDATE');
+
+      await request(app.getHttpServer())
+        .get('/applications/stats')
+        .set('Authorization', `Bearer ${candidate.accessToken}`)
+        .expect(403);
+    });
+
+    it('aggregates jobs and applications for the company', async () => {
+      const { candidate, resume } = await setupCandidateWithResume(
+        app.getHttpServer(),
+      );
+      const { company, job } = await setupCompanyWithJob(app.getHttpServer());
+
+      const application = await request(app.getHttpServer())
+        .post('/applications')
+        .set('Authorization', `Bearer ${candidate.accessToken}`)
+        .send({ jobId: job.id, resumeId: resume.id })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .patch(`/applications/${application.body.id}/status`)
+        .set('Authorization', `Bearer ${company.accessToken}`)
+        .send({ status: 'INTERVIEW' })
+        .expect(200);
+
+      const stats = await request(app.getHttpServer())
+        .get('/applications/stats')
+        .set('Authorization', `Bearer ${company.accessToken}`)
+        .expect(200);
+
+      expect(stats.body.jobs.total).toBe(1);
+      expect(stats.body.jobs.published).toBe(1);
+      expect(stats.body.applications.total).toBe(1);
+      expect(stats.body.applications.byStatus.INTERVIEW).toBe(1);
+      expect(stats.body.applications.byStatus.RECEIVED).toBe(0);
+      expect(stats.body.applicationsByDay).toHaveLength(14);
+      const today = new Date().toISOString().slice(0, 10);
+      const todayBucket = stats.body.applicationsByDay.find(
+        (d: { date: string }) => d.date === today,
+      );
+      expect(todayBucket.count).toBe(1);
+    });
+  });
 });

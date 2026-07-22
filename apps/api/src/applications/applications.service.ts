@@ -169,4 +169,78 @@ export class ApplicationsService {
 
     return updated;
   }
+
+  async getCompanyStats(userId: string) {
+    const companyProfile = await this.getOwnCompanyProfile(userId);
+
+    const daysBack = 13;
+    const rangeStart = new Date();
+    rangeStart.setHours(0, 0, 0, 0);
+    rangeStart.setDate(rangeStart.getDate() - daysBack);
+
+    const [jobsByStatus, applicationsByStatus, recentApplications] =
+      await Promise.all([
+        this.prisma.job.groupBy({
+          by: ['status'],
+          where: { companyProfileId: companyProfile.id },
+          _count: { _all: true },
+        }),
+        this.prisma.application.groupBy({
+          by: ['status'],
+          where: { job: { companyProfileId: companyProfile.id } },
+          _count: { _all: true },
+        }),
+        this.prisma.application.findMany({
+          where: {
+            job: { companyProfileId: companyProfile.id },
+            createdAt: { gte: rangeStart },
+          },
+          select: { createdAt: true },
+        }),
+      ]);
+
+    const jobsCount = { DRAFT: 0, PUBLISHED: 0, CLOSED: 0 };
+    for (const row of jobsByStatus) {
+      jobsCount[row.status] = row._count._all;
+    }
+
+    const applicationsCount = {
+      RECEIVED: 0,
+      IN_REVIEW: 0,
+      INTERVIEW: 0,
+      REJECTED: 0,
+      ACCEPTED: 0,
+    };
+    for (const row of applicationsByStatus) {
+      applicationsCount[row.status] = row._count._all;
+    }
+
+    const byDay = new Map<string, number>();
+    for (let i = 0; i <= daysBack; i++) {
+      const d = new Date(rangeStart);
+      d.setDate(d.getDate() + i);
+      byDay.set(d.toISOString().slice(0, 10), 0);
+    }
+    for (const application of recentApplications) {
+      const key = application.createdAt.toISOString().slice(0, 10);
+      byDay.set(key, (byDay.get(key) ?? 0) + 1);
+    }
+
+    return {
+      jobs: {
+        total: jobsCount.DRAFT + jobsCount.PUBLISHED + jobsCount.CLOSED,
+        published: jobsCount.PUBLISHED,
+        closed: jobsCount.CLOSED,
+        draft: jobsCount.DRAFT,
+      },
+      applications: {
+        total: Object.values(applicationsCount).reduce((a, b) => a + b, 0),
+        byStatus: applicationsCount,
+      },
+      applicationsByDay: Array.from(byDay.entries()).map(([date, count]) => ({
+        date,
+        count,
+      })),
+    };
+  }
 }

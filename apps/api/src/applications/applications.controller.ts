@@ -36,6 +36,12 @@ export class ApplicationsController {
   }
 
   @Roles('COMPANY')
+  @Get('stats')
+  getStats(@CurrentUser() user: JwtPayload) {
+    return this.applicationsService.getCompanyStats(user.sub);
+  }
+
+  @Roles('COMPANY')
   @Get()
   findForJob(
     @CurrentUser() user: JwtPayload,

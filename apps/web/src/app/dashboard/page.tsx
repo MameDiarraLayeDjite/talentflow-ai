@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth-context";
+import { CompanyStats } from "@/features/applications/company-stats";
 
 const ROLE_LABEL: Record<string, string> = {
   CANDIDATE: "Candidat",
@@ -77,7 +78,7 @@ const COMPANY_LINKS: DashboardLink[] = [
 ];
 
 export default function DashboardPage() {
-  const { user, isLoading, logout } = useAuth();
+  const { user, isLoading, accessToken, logout } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -123,6 +124,15 @@ export default function DashboardPage() {
           </Link>
         ))}
       </div>
+
+      {user.role === "COMPANY" && accessToken && (
+        <div>
+          <h2 className="mb-3 text-lg font-semibold tracking-tight">
+            Aperçu
+          </h2>
+          <CompanyStats accessToken={accessToken} />
+        </div>
+      )}
     </main>
   );
 }
