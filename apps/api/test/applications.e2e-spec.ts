@@ -2,6 +2,9 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { createTestApp, resetDb } from './utils/test-app';
 import {
+  createCandidateProfile,
+  createJob,
+  createResume,
   registerUser,
   setupCandidateWithResume,
   setupCompanyWithJob,
@@ -54,6 +57,43 @@ describe('Applications (e2e)', () => {
 
     expect(mine.body).toHaveLength(1);
     expect(mine.body[0].job.title).toBe(job.title);
+  });
+
+  it('computes a matchScore from the resume skills and the job requirements', async () => {
+    const candidate = await registerUser(app.getHttpServer(), 'CANDIDATE');
+    await createCandidateProfile(app.getHttpServer(), candidate.accessToken);
+    const resume = await createResume(
+      app.getHttpServer(),
+      candidate.accessToken,
+      'React NestJS Docker',
+    );
+    const { company } = await setupCompanyWithJob(app.getHttpServer());
+    const job = await createJob(app.getHttpServer(), company.accessToken, {
+      requiredSkills: ['React', 'NestJS', 'PostgreSQL', 'AWS'],
+    });
+
+    const application = await request(app.getHttpServer())
+      .post('/applications')
+      .set('Authorization', `Bearer ${candidate.accessToken}`)
+      .send({ jobId: job.id, resumeId: resume.id })
+      .expect(201);
+
+    expect(application.body.matchScore).toBe(50);
+  });
+
+  it('leaves matchScore null when the job has no required skills', async () => {
+    const { candidate, resume } = await setupCandidateWithResume(
+      app.getHttpServer(),
+    );
+    const { job } = await setupCompanyWithJob(app.getHttpServer());
+
+    const application = await request(app.getHttpServer())
+      .post('/applications')
+      .set('Authorization', `Bearer ${candidate.accessToken}`)
+      .send({ jobId: job.id, resumeId: resume.id })
+      .expect(201);
+
+    expect(application.body.matchScore).toBeNull();
   });
 
   it('rejects applying twice to the same job', async () => {

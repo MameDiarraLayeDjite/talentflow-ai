@@ -3,3 +3,6 @@ node_modules
 .env
 
 /generated/prisma
+
+# Local file storage fallback (used when R2_* env vars are unset)
+/uploads

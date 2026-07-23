@@ -1,12 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, FileText, Loader2 } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { ExternalLink, FileText, Loader2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,16 +12,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
-import { createResume, listMyResumes } from "@/features/resumes/api";
-
-const schema = z.object({
-  fileUrl: z.string().url("Colle un lien valide vers ton CV (PDF)"),
-});
-type FormValues = z.infer<typeof schema>;
+import { listMyResumes, uploadResume } from "@/features/resumes/api";
 
 function fileName(url: string): string {
   try {
@@ -54,19 +44,21 @@ export default function ResumesPage() {
 
 function ResumesContent({ accessToken }: { accessToken: string }) {
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
   const query = useQuery({
     queryKey: ["resumes"],
     queryFn: () => listMyResumes(accessToken),
   });
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-  });
-
   const mutation = useMutation({
-    mutationFn: (values: FormValues) => createResume(accessToken, values.fileUrl),
+    mutationFn: (file: File) => uploadResume(accessToken, file),
     onSuccess: () => {
-      reset();
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
       void queryClient.invalidateQueries({ queryKey: ["resumes"] });
     },
   });
@@ -77,26 +69,26 @@ function ResumesContent({ accessToken }: { accessToken: string }) {
         <CardHeader>
           <CardTitle>Mes CV</CardTitle>
           <CardDescription>
-            Ajoute un lien vers ton CV (PDF hébergé en ligne) pour pouvoir
-            postuler aux offres.
+            Envoie un CV au format PDF (5 Mo max). Les compétences sont
+            extraites automatiquement pour calculer ton score de
+            correspondance avec les offres.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           <form
-            onSubmit={handleSubmit((values) => mutation.mutate(values))}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (selectedFile) mutation.mutate(selectedFile);
+            }}
             className="flex flex-col gap-2"
           >
-            <Label htmlFor="fileUrl">Lien vers le CV</Label>
-            <Input
-              id="fileUrl"
-              placeholder="https://.../cv.pdf"
-              {...register("fileUrl")}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf"
+              onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+              className="text-muted-foreground file:border-input file:bg-background hover:file:bg-muted h-9 w-full rounded-md border border-input px-1 text-sm file:mr-3 file:h-full file:rounded-l-md file:border-0 file:border-r file:px-3 file:text-sm file:font-medium"
             />
-            {errors.fileUrl && (
-              <p className="text-destructive text-sm">
-                {errors.fileUrl.message}
-              </p>
-            )}
             {mutation.isError && (
               <p className="text-destructive text-sm">
                 {mutation.error instanceof ApiError
@@ -104,13 +96,17 @@ function ResumesContent({ accessToken }: { accessToken: string }) {
                   : "Une erreur est survenue"}
               </p>
             )}
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending && <Loader2 className="size-4 animate-spin" />}
-              {mutation.isPending ? "Ajout..." : "Ajouter ce CV"}
+            <Button type="submit" disabled={!selectedFile || mutation.isPending}>
+              {mutation.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Upload className="size-4" />
+              )}
+              {mutation.isPending ? "Envoi..." : "Envoyer ce CV"}
             </Button>
           </form>
 
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             {query.isLoading && (
               <div className="text-muted-foreground flex items-center gap-2 text-sm">
                 <Loader2 className="size-4 animate-spin" />
@@ -123,17 +119,34 @@ function ResumesContent({ accessToken }: { accessToken: string }) {
               </p>
             )}
             {query.data?.map((resume) => (
-              <a
-                key={resume.id}
-                href={resume.fileUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="hover:bg-muted/50 flex items-center gap-2 rounded-md border p-2.5 text-sm transition-colors"
-              >
-                <FileText className="text-muted-foreground size-4 shrink-0" />
-                <span className="flex-1 truncate">{fileName(resume.fileUrl)}</span>
-                <ExternalLink className="text-muted-foreground size-3.5 shrink-0" />
-              </a>
+              <div key={resume.id} className="flex flex-col gap-2 rounded-md border p-2.5">
+                <a
+                  href={resume.fileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-foreground flex items-center gap-2 text-sm transition-colors"
+                >
+                  <FileText className="text-muted-foreground size-4 shrink-0" />
+                  <span className="flex-1 truncate">{fileName(resume.fileUrl)}</span>
+                  <ExternalLink className="text-muted-foreground size-3.5 shrink-0" />
+                </a>
+                {resume.parsedSkills.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {resume.parsedSkills.map((skill) => (
+                      <span
+                        key={skill}
+                        className="bg-muted rounded-full px-2.5 py-0.5 text-xs"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-xs">
+                    Aucune compétence détectée automatiquement dans ce CV.
+                  </p>
+                )}
+              </div>
             ))}
           </div>
         </CardContent>

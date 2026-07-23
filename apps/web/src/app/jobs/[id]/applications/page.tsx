@@ -13,6 +13,7 @@ import {
   updateApplicationStatus,
 } from "@/features/applications/api";
 import { ApplicationStatusBadge } from "@/features/applications/status-badge";
+import { MatchScoreBadge } from "@/features/applications/match-score-badge";
 import { listMyJobs, updateJob } from "@/features/jobs/api";
 import type { ApplicationStatus, JobStatus } from "@talentflow/types";
 
@@ -62,6 +63,10 @@ function ApplicationsList({ accessToken }: { accessToken: string }) {
   const query = useQuery({
     queryKey: ["jobApplications", params.id],
     queryFn: () => listApplicationsForJob(accessToken, params.id),
+    select: (applications) =>
+      [...applications].sort(
+        (a, b) => (b.matchScore ?? -1) - (a.matchScore ?? -1),
+      ),
   });
 
   const mutation = useMutation({
@@ -138,7 +143,10 @@ function ApplicationsList({ accessToken }: { accessToken: string }) {
                 <h2 className="font-medium">
                   {application.candidateProfile.fullName}
                 </h2>
-                <ApplicationStatusBadge status={application.status} />
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <MatchScoreBadge score={application.matchScore} />
+                  <ApplicationStatusBadge status={application.status} />
+                </div>
               </div>
               {application.candidateProfile.title && (
                 <p className="text-muted-foreground text-sm">

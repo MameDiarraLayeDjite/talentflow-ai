@@ -9,6 +9,7 @@ import { CompanyAvatar } from "@/components/company-avatar";
 import { useAuth } from "@/lib/auth-context";
 import { listMyApplications } from "@/features/applications/api";
 import { ApplicationStatusBadge } from "@/features/applications/status-badge";
+import { MatchScoreBadge } from "@/features/applications/match-score-badge";
 
 export default function MyApplicationsPage() {
   const { user, isLoading, accessToken } = useAuth();
@@ -67,7 +68,10 @@ function MyApplicationsList({ accessToken }: { accessToken: string }) {
                 <h2 className="truncate font-medium">
                   {application.job.title}
                 </h2>
-                <ApplicationStatusBadge status={application.status} />
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <MatchScoreBadge score={application.matchScore} />
+                  <ApplicationStatusBadge status={application.status} />
+                </div>
               </div>
               <p className="text-muted-foreground text-sm">
                 {application.job.companyProfile.name}

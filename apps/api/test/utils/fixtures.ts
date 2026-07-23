@@ -4,6 +4,7 @@ import type { INestApplication } from '@nestjs/common';
 import type { App } from 'supertest/types';
 import type { UserRole } from '@talentflow/types';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { buildFakePdf } from './fake-pdf';
 
 let counter = 0;
 function uniqueEmail(prefix: string): string {
@@ -100,12 +101,15 @@ export async function createJob(
 export async function createResume(
   app: App,
   accessToken: string,
-  fileUrl = 'https://storage.example.com/test-cv.pdf',
+  resumeText = 'Curriculum Vitae',
 ) {
   const res = await request(app)
     .post('/candidates/me/resumes')
     .set('Authorization', `Bearer ${accessToken}`)
-    .send({ fileUrl })
+    .attach('file', buildFakePdf(resumeText), {
+      filename: 'cv.pdf',
+      contentType: 'application/pdf',
+    })
     .expect(201);
   return res.body;
 }

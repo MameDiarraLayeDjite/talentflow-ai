@@ -10,6 +10,20 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 
+function computeMatchScore(
+  parsedSkills: string[],
+  requiredSkills: string[],
+): number | null {
+  if (requiredSkills.length === 0) {
+    return null;
+  }
+  const parsedSet = new Set(parsedSkills.map((s) => s.toLowerCase()));
+  const matched = requiredSkills.filter((s) =>
+    parsedSet.has(s.toLowerCase()),
+  ).length;
+  return Math.round((matched / requiredSkills.length) * 100);
+}
+
 @Injectable()
 export class ApplicationsService {
   constructor(
@@ -57,6 +71,11 @@ export class ApplicationsService {
       throw new NotFoundException('CV introuvable');
     }
 
+    const matchScore = computeMatchScore(
+      resume.parsedSkills,
+      job.requiredSkills,
+    );
+
     let application: Application;
     try {
       application = await this.prisma.application.create({
@@ -65,6 +84,7 @@ export class ApplicationsService {
           candidateProfileId: candidateProfile.id,
           resumeId: dto.resumeId,
           status: 'RECEIVED',
+          matchScore,
         },
       });
     } catch (error) {
