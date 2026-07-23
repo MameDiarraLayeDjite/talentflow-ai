@@ -74,3 +74,7 @@ export function updateJob(
     accessToken,
   });
 }
+
+export function deleteJob(accessToken: string, id: string) {
+  return apiFetch<void>(`/jobs/${id}`, { method: "DELETE", accessToken });
+}

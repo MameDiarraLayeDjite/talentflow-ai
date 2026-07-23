@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Loader2, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -24,6 +24,7 @@ import {
   listAdminUsers,
   type AdminUser,
 } from "@/features/admin/api";
+import { UserEditDialog } from "@/features/admin/user-edit-dialog";
 import type { UserRole } from "@talentflow/types";
 
 const PAGE_SIZE = 20;
@@ -48,6 +49,7 @@ export default function AdminUsersPage() {
   const [role, setRole] = useState<UserRole | undefined>(undefined);
   const [page, setPage] = useState(1);
   const [pendingDelete, setPendingDelete] = useState<AdminUser | null>(null);
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -149,15 +151,25 @@ export default function AdminUsersPage() {
                     {ROLE_LABEL[u.role]}
                   </p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={isSelf || deleteMutation.isPending}
-                  onClick={() => setPendingDelete(u)}
-                >
-                  <Trash2 className="size-4" />
-                  Supprimer
-                </Button>
+                <div className="flex shrink-0 gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditingUser(u)}
+                  >
+                    <Pencil className="size-4" />
+                    Modifier
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isSelf || deleteMutation.isPending}
+                    onClick={() => setPendingDelete(u)}
+                  >
+                    <Trash2 className="size-4" />
+                    Supprimer
+                  </Button>
+                </div>
               </div>
             );
           })}
@@ -221,6 +233,16 @@ export default function AdminUsersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {editingUser && accessToken && (
+        <UserEditDialog
+          user={editingUser}
+          isSelf={editingUser.id === user.sub}
+          accessToken={accessToken}
+          open={!!editingUser}
+          onOpenChange={(open) => !open && setEditingUser(null)}
+        />
+      )}
     </main>
   );
 }

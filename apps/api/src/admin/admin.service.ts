@@ -1,12 +1,16 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { UpdateJobDto } from '../jobs/dto/update-job.dto';
+import { UpdateCandidateProfileDto } from '../candidates/dto/update-candidate-profile.dto';
+import { UpdateCompanyProfileDto } from '../companies/dto/update-company-profile.dto';
 import { QueryUsersDto } from './dto/query-users.dto';
 import { QueryAdminJobsDto } from './dto/query-admin-jobs.dto';
-import { UpdateJobStatusDto } from './dto/update-job-status.dto';
+import { UpdateAdminUserDto } from './dto/update-admin-user.dto';
 
 @Injectable()
 export class AdminService {
@@ -47,8 +51,18 @@ export class AdminService {
           email: true,
           role: true,
           createdAt: true,
-          candidateProfile: { select: { fullName: true } },
-          companyProfile: { select: { name: true } },
+          candidateProfile: {
+            select: {
+              id: true,
+              fullName: true,
+              title: true,
+              bio: true,
+              skills: true,
+            },
+          },
+          companyProfile: {
+            select: { id: true, name: true, sector: true, description: true },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
@@ -64,6 +78,35 @@ export class AdminService {
       limit,
       totalPages: Math.max(1, Math.ceil(total / limit)),
     };
+  }
+
+  async updateUser(
+    adminUserId: string,
+    targetUserId: string,
+    dto: UpdateAdminUserDto,
+  ) {
+    if (dto.role && targetUserId === adminUserId) {
+      throw new ForbiddenException('Tu ne peux pas changer ton propre rôle');
+    }
+    const user = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+    });
+    if (!user) {
+      throw new NotFoundException('Utilisateur introuvable');
+    }
+    if (dto.email && dto.email !== user.email) {
+      const existing = await this.prisma.user.findUnique({
+        where: { email: dto.email },
+      });
+      if (existing) {
+        throw new ConflictException('Cet email est déjà utilisé');
+      }
+    }
+    return this.prisma.user.update({
+      where: { id: targetUserId },
+      data: dto,
+      select: { id: true, email: true, role: true, createdAt: true },
+    });
   }
 
   async deleteUser(adminUserId: string, targetUserId: string) {
@@ -107,14 +150,49 @@ export class AdminService {
     };
   }
 
-  async updateJobStatus(jobId: string, dto: UpdateJobStatusDto) {
+  async updateJob(jobId: string, dto: UpdateJobDto) {
     const job = await this.prisma.job.findUnique({ where: { id: jobId } });
     if (!job) {
       throw new NotFoundException('Offre introuvable');
     }
-    return this.prisma.job.update({
-      where: { id: jobId },
-      data: { status: dto.status },
+    return this.prisma.job.update({ where: { id: jobId }, data: dto });
+  }
+
+  async deleteJob(jobId: string) {
+    const job = await this.prisma.job.findUnique({ where: { id: jobId } });
+    if (!job) {
+      throw new NotFoundException('Offre introuvable');
+    }
+    await this.prisma.job.delete({ where: { id: jobId } });
+    return { success: true };
+  }
+
+  async updateCandidateProfile(
+    profileId: string,
+    dto: UpdateCandidateProfileDto,
+  ) {
+    const profile = await this.prisma.candidateProfile.findUnique({
+      where: { id: profileId },
+    });
+    if (!profile) {
+      throw new NotFoundException('Profil candidat introuvable');
+    }
+    return this.prisma.candidateProfile.update({
+      where: { id: profileId },
+      data: dto,
+    });
+  }
+
+  async updateCompanyProfile(profileId: string, dto: UpdateCompanyProfileDto) {
+    const profile = await this.prisma.companyProfile.findUnique({
+      where: { id: profileId },
+    });
+    if (!profile) {
+      throw new NotFoundException('Profil entreprise introuvable');
+    }
+    return this.prisma.companyProfile.update({
+      where: { id: profileId },
+      data: dto,
     });
   }
 }

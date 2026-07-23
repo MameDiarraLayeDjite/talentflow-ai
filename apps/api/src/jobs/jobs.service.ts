@@ -127,4 +127,18 @@ export class JobsService {
 
     return this.prisma.job.update({ where: { id: jobId }, data: dto });
   }
+
+  async remove(userId: string, jobId: string) {
+    const companyProfile = await this.getOwnCompanyProfile(userId);
+    const job = await this.prisma.job.findUnique({ where: { id: jobId } });
+    if (!job) {
+      throw new NotFoundException('Offre introuvable');
+    }
+    if (job.companyProfileId !== companyProfile.id) {
+      throw new ForbiddenException("Cette offre ne t'appartient pas");
+    }
+
+    await this.prisma.job.delete({ where: { id: jobId } });
+    return { success: true };
+  }
 }

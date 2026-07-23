@@ -2,6 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { createTestApp, resetDb } from './utils/test-app';
 import {
+  createCandidateProfile,
   registerAdmin,
   registerUser,
   setupCandidateWithResume,
@@ -130,7 +131,7 @@ describe('Admin (e2e)', () => {
     expect(jobsRes.body.items[0].id).toBe(job.id);
 
     const updated = await request(app.getHttpServer())
-      .patch(`/admin/jobs/${job.id}/status`)
+      .patch(`/admin/jobs/${job.id}`)
       .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ status: 'CLOSED' })
       .expect(200);
@@ -141,5 +142,122 @@ describe('Admin (e2e)', () => {
       .set('Authorization', `Bearer ${admin.accessToken}`)
       .expect(200);
     expect(closedOnly.body.total).toBe(1);
+  });
+
+  it('lets an admin fully edit a job owned by any company', async () => {
+    const admin = await registerAdmin(app);
+    const { job } = await setupCompanyWithJob(app.getHttpServer());
+
+    const updated = await request(app.getHttpServer())
+      .patch(`/admin/jobs/${job.id}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .send({ title: 'Titre modéré par un admin', location: 'Remote' })
+      .expect(200);
+
+    expect(updated.body.title).toBe('Titre modéré par un admin');
+    expect(updated.body.location).toBe('Remote');
+  });
+
+  it('lets an admin permanently delete a job', async () => {
+    const admin = await registerAdmin(app);
+    const { job } = await setupCompanyWithJob(app.getHttpServer());
+
+    await request(app.getHttpServer())
+      .delete(`/admin/jobs/${job.id}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .expect(200);
+
+    const jobsRes = await request(app.getHttpServer())
+      .get('/admin/jobs')
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .expect(200);
+    expect(jobsRes.body.total).toBe(0);
+  });
+
+  it("lets an admin edit a user's email and role, but not their own role", async () => {
+    const admin = await registerAdmin(app);
+    const candidate = await registerUser(app.getHttpServer(), 'CANDIDATE');
+
+    const usersRes = await request(app.getHttpServer())
+      .get('/admin/users?role=CANDIDATE')
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .expect(200);
+    const candidateId = usersRes.body.items[0].id as string;
+    void candidate;
+
+    const updated = await request(app.getHttpServer())
+      .patch(`/admin/users/${candidateId}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .send({ role: 'COMPANY' })
+      .expect(200);
+    expect(updated.body.role).toBe('COMPANY');
+
+    const meRes = await request(app.getHttpServer())
+      .get('/admin/users?role=ADMIN')
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .expect(200);
+    const adminId = meRes.body.items[0].id as string;
+
+    await request(app.getHttpServer())
+      .patch(`/admin/users/${adminId}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .send({ role: 'CANDIDATE' })
+      .expect(403);
+  });
+
+  it('rejects reusing an email already taken by another user', async () => {
+    const admin = await registerAdmin(app);
+    const candidate = await registerUser(app.getHttpServer(), 'CANDIDATE');
+
+    const usersRes = await request(app.getHttpServer())
+      .get('/admin/users?role=CANDIDATE')
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .expect(200);
+    const candidateId = usersRes.body.items[0].id as string;
+
+    await request(app.getHttpServer())
+      .patch(`/admin/users/${candidateId}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .send({ email: admin.email })
+      .expect(409);
+    void candidate;
+  });
+
+  it('lets an admin edit a candidate profile', async () => {
+    const admin = await registerAdmin(app);
+    const candidate = await registerUser(app.getHttpServer(), 'CANDIDATE');
+    const profile = await createCandidateProfile(
+      app.getHttpServer(),
+      candidate.accessToken,
+      { fullName: 'Nom Original' },
+    );
+
+    const updated = await request(app.getHttpServer())
+      .patch(`/admin/candidates/${profile.id}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .send({ fullName: 'Nom Corrigé Par Admin' })
+      .expect(200);
+
+    expect(updated.body.fullName).toBe('Nom Corrigé Par Admin');
+  });
+
+  it('lets an admin edit a company profile', async () => {
+    const admin = await registerAdmin(app);
+    const { company } = await setupCompanyWithJob(app.getHttpServer());
+
+    const companyRes = await request(app.getHttpServer())
+      .get('/admin/users?role=COMPANY')
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .expect(200);
+    const profileId = companyRes.body.items[0].companyProfile.id as string;
+    void company;
+
+    const updated = await request(app.getHttpServer())
+      .patch(`/admin/companies/${profileId}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .send({ sector: 'Fintech' })
+      .expect(200);
+
+    expect(updated.body.sector).toBe('Fintech');
   });
 });

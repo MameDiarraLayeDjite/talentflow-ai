@@ -156,4 +156,45 @@ describe('Jobs (e2e)', () => {
       .send({ status: 'CLOSED' })
       .expect(403);
   });
+
+  it('lets the owning company delete its own job', async () => {
+    const user = await registerUser(app.getHttpServer(), 'COMPANY');
+    await createCompanyProfile(app.getHttpServer(), user.accessToken);
+    const job = await createJob(app.getHttpServer(), user.accessToken);
+
+    await request(app.getHttpServer())
+      .delete(`/jobs/${job.id}`)
+      .set('Authorization', `Bearer ${user.accessToken}`)
+      .expect(200);
+
+    await request(app.getHttpServer()).get(`/jobs/${job.id}`).expect(404);
+  });
+
+  it('rejects deleting a job owned by a different company', async () => {
+    const owner = await registerUser(app.getHttpServer(), 'COMPANY');
+    await createCompanyProfile(app.getHttpServer(), owner.accessToken);
+    const job = await createJob(app.getHttpServer(), owner.accessToken);
+
+    const otherCompany = await registerUser(app.getHttpServer(), 'COMPANY');
+    await createCompanyProfile(app.getHttpServer(), otherCompany.accessToken, {
+      name: 'Other Corp',
+    });
+
+    await request(app.getHttpServer())
+      .delete(`/jobs/${job.id}`)
+      .set('Authorization', `Bearer ${otherCompany.accessToken}`)
+      .expect(403);
+  });
+
+  it('rejects a candidate deleting a job', async () => {
+    const owner = await registerUser(app.getHttpServer(), 'COMPANY');
+    await createCompanyProfile(app.getHttpServer(), owner.accessToken);
+    const job = await createJob(app.getHttpServer(), owner.accessToken);
+    const candidate = await registerUser(app.getHttpServer(), 'CANDIDATE');
+
+    await request(app.getHttpServer())
+      .delete(`/jobs/${job.id}`)
+      .set('Authorization', `Bearer ${candidate.accessToken}`)
+      .expect(403);
+  });
 });

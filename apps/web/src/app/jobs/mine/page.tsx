@@ -1,15 +1,34 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { Briefcase, Loader2, MapPin, PlusCircle } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Briefcase,
+  Loader2,
+  MapPin,
+  Pencil,
+  PlusCircle,
+  Trash2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { relativeTime } from "@/lib/relative-time";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
-import { listMyJobs } from "@/features/jobs/api";
+import { deleteJob, listMyJobs, updateJob, type Job } from "@/features/jobs/api";
+import { JobEditDialog } from "@/features/jobs/job-edit-dialog";
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: "Brouillon",
@@ -42,9 +61,21 @@ export default function MyJobsPage() {
 }
 
 function MyJobsList({ accessToken }: { accessToken: string }) {
+  const queryClient = useQueryClient();
+  const [editingJob, setEditingJob] = useState<Job | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Job | null>(null);
+
   const query = useQuery({
     queryKey: ["myJobs"],
     queryFn: () => listMyJobs(accessToken),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteJob(accessToken, id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["myJobs"] });
+      setPendingDelete(null);
+    },
   });
 
   return (
@@ -72,35 +103,97 @@ function MyJobsList({ accessToken }: { accessToken: string }) {
         </p>
       )}
       {query.data?.map((job) => (
-        <Link key={job.id} href={`/jobs/${job.id}/applications`}>
-          <Card className="gap-0 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-            <div className="flex items-start justify-between gap-2">
+        <Card
+          key={job.id}
+          className="gap-0 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <Link
+              href={`/jobs/${job.id}/applications`}
+              className="min-w-0 flex-1"
+            >
               <h2 className="font-medium">{job.title}</h2>
-              <span className="text-muted-foreground shrink-0 text-xs">
-                {relativeTime(job.createdAt)}
-              </span>
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-              <span className="text-muted-foreground flex items-center gap-1">
-                <MapPin className="size-3.5" />
-                {job.location}
-              </span>
-              <span className="text-muted-foreground flex items-center gap-1">
-                <Briefcase className="size-3.5" />
-                {job.contractType}
-              </span>
-              <span
-                className={cn(
-                  "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-                  STATUS_CLASSES[job.status],
-                )}
-              >
-                {STATUS_LABEL[job.status] ?? job.status}
-              </span>
-            </div>
-          </Card>
-        </Link>
+            </Link>
+            <span className="text-muted-foreground shrink-0 text-xs">
+              {relativeTime(job.createdAt)}
+            </span>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+            <span className="text-muted-foreground flex items-center gap-1">
+              <MapPin className="size-3.5" />
+              {job.location}
+            </span>
+            <span className="text-muted-foreground flex items-center gap-1">
+              <Briefcase className="size-3.5" />
+              {job.contractType}
+            </span>
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
+                STATUS_CLASSES[job.status],
+              )}
+            >
+              {STATUS_LABEL[job.status] ?? job.status}
+            </span>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditingJob(job)}
+            >
+              <Pencil className="size-4" />
+              Modifier
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPendingDelete(job)}
+            >
+              <Trash2 className="size-4" />
+              Supprimer
+            </Button>
+          </div>
+        </Card>
       ))}
+
+      {editingJob && (
+        <JobEditDialog
+          job={editingJob}
+          open={!!editingJob}
+          onOpenChange={(open) => !open && setEditingJob(null)}
+          onSubmit={(values) => updateJob(accessToken, editingJob.id, values)}
+          invalidateQueryKeys={[["myJobs"]]}
+        />
+      )}
+
+      <AlertDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cette offre ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              &quot;{pendingDelete?.title}&quot; sera définitivement
+              supprimée, ainsi que les candidatures reçues. Cette action est
+              irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() =>
+                pendingDelete && deleteMutation.mutate(pendingDelete.id)
+              }
+            >
+              {deleteMutation.isPending ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -55,5 +56,12 @@ export class JobsController {
     @Body() dto: UpdateJobDto,
   ) {
     return this.jobsService.update(user.sub, id, dto);
+  }
+
+  @UseGuards(JwtAccessGuard, RolesGuard)
+  @Roles('COMPANY')
+  @Delete(':id')
+  remove(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.jobsService.remove(user.sub, id);
   }
 }

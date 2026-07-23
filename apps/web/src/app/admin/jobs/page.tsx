@@ -4,12 +4,28 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
-import { listAdminJobs, updateAdminJobStatus } from "@/features/admin/api";
+import {
+  deleteAdminJob,
+  listAdminJobs,
+  updateAdminJob,
+} from "@/features/admin/api";
+import { JobEditDialog } from "@/features/jobs/job-edit-dialog";
+import type { JobWithCompany } from "@/features/jobs/api";
 import type { JobStatus } from "@talentflow/types";
 
 const PAGE_SIZE = 20;
@@ -40,6 +56,10 @@ export default function AdminJobsPage() {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<JobStatus | undefined>(undefined);
   const [page, setPage] = useState(1);
+  const [editingJob, setEditingJob] = useState<JobWithCompany | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<JobWithCompany | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -58,10 +78,19 @@ export default function AdminJobsPage() {
 
   const statusMutation = useMutation({
     mutationFn: ({ id, next }: { id: string; next: JobStatus }) =>
-      updateAdminJobStatus(accessToken!, id, next),
+      updateAdminJob(accessToken!, id, { status: next }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["adminJobs"] });
       queryClient.invalidateQueries({ queryKey: ["adminStats"] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteAdminJob(accessToken!, id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminJobs"] });
+      queryClient.invalidateQueries({ queryKey: ["adminStats"] });
+      setPendingDelete(null);
     },
   });
 
@@ -142,7 +171,7 @@ export default function AdminJobsPage() {
                   {job.companyProfile.name} · {job.location}
                 </p>
               </div>
-              <div className="flex gap-1.5">
+              <div className="flex flex-wrap gap-1.5">
                 {(["DRAFT", "PUBLISHED", "CLOSED"] as JobStatus[])
                   .filter((s) => s !== job.status)
                   .map((s) => (
@@ -158,6 +187,22 @@ export default function AdminJobsPage() {
                       {STATUS_LABEL[s]}
                     </Button>
                   ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditingJob(job)}
+                >
+                  <Pencil className="size-4" />
+                  Modifier
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPendingDelete(job)}
+                >
+                  <Trash2 className="size-4" />
+                  Supprimer
+                </Button>
               </div>
             </div>
           ))}
@@ -193,6 +238,46 @@ export default function AdminJobsPage() {
           </Button>
         </div>
       )}
+
+      {editingJob && (
+        <JobEditDialog
+          job={editingJob}
+          open={!!editingJob}
+          onOpenChange={(open) => !open && setEditingJob(null)}
+          onSubmit={(values) =>
+            updateAdminJob(accessToken!, editingJob.id, values)
+          }
+          invalidateQueryKeys={[["adminJobs"]]}
+        />
+      )}
+
+      <AlertDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cette offre ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              &quot;{pendingDelete?.title}&quot; sera définitivement
+              supprimée, ainsi que les candidatures reçues. Cette action est
+              irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() =>
+                pendingDelete && deleteMutation.mutate(pendingDelete.id)
+              }
+            >
+              {deleteMutation.isPending ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }

@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/api-client";
 import type { JobStatus, UserRole } from "@talentflow/types";
-import type { JobWithCompany } from "@/features/jobs/api";
+import type { JobInput, JobWithCompany } from "@/features/jobs/api";
 
 export interface AdminStats {
   users: { total: number; CANDIDATE: number; COMPANY: number; ADMIN: number };
@@ -8,13 +8,28 @@ export interface AdminStats {
   applications: { total: number };
 }
 
+export interface AdminCandidateProfile {
+  id: string;
+  fullName: string;
+  title: string | null;
+  bio: string | null;
+  skills: string[];
+}
+
+export interface AdminCompanyProfile {
+  id: string;
+  name: string;
+  sector: string | null;
+  description: string | null;
+}
+
 export interface AdminUser {
   id: string;
   email: string;
   role: UserRole;
   createdAt: string;
-  candidateProfile: { fullName: string } | null;
-  companyProfile: { name: string } | null;
+  candidateProfile: AdminCandidateProfile | null;
+  companyProfile: AdminCompanyProfile | null;
 }
 
 export interface PaginatedUsers {
@@ -52,9 +67,45 @@ export function listAdminUsers(
   });
 }
 
+export function updateAdminUser(
+  accessToken: string,
+  id: string,
+  body: { email?: string; role?: UserRole },
+) {
+  return apiFetch<AdminUser>(`/admin/users/${id}`, {
+    method: "PATCH",
+    body,
+    accessToken,
+  });
+}
+
 export function deleteAdminUser(accessToken: string, id: string) {
   return apiFetch<void>(`/admin/users/${id}`, {
     method: "DELETE",
+    accessToken,
+  });
+}
+
+export function updateAdminCandidateProfile(
+  accessToken: string,
+  id: string,
+  body: Partial<Pick<AdminCandidateProfile, "fullName" | "title" | "bio" | "skills">>,
+) {
+  return apiFetch<AdminCandidateProfile>(`/admin/candidates/${id}`, {
+    method: "PATCH",
+    body,
+    accessToken,
+  });
+}
+
+export function updateAdminCompanyProfile(
+  accessToken: string,
+  id: string,
+  body: Partial<Pick<AdminCompanyProfile, "name" | "sector" | "description">>,
+) {
+  return apiFetch<AdminCompanyProfile>(`/admin/companies/${id}`, {
+    method: "PATCH",
+    body,
     accessToken,
   });
 }
@@ -74,14 +125,21 @@ export function listAdminJobs(
   });
 }
 
-export function updateAdminJobStatus(
+export function updateAdminJob(
   accessToken: string,
   id: string,
-  status: JobStatus,
+  body: Partial<JobInput> & { status?: JobStatus },
 ) {
-  return apiFetch<JobWithCompany>(`/admin/jobs/${id}/status`, {
+  return apiFetch<JobWithCompany>(`/admin/jobs/${id}`, {
     method: "PATCH",
-    body: { status },
+    body,
+    accessToken,
+  });
+}
+
+export function deleteAdminJob(accessToken: string, id: string) {
+  return apiFetch<void>(`/admin/jobs/${id}`, {
+    method: "DELETE",
     accessToken,
   });
 }
